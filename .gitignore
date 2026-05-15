@@ -1,0 +1,27 @@
+__pycache__/
+*.py[cod]
+*.pyo
+
+.Python
+.venv/
+venv/
+env/
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+build/
+dist/
+*.egg-info/
+
+.idea/
+.vscode/
+
+*.log
+tmp/
+
+# Local reference copy, not part of this project.
+Discord_Moderation_Bot/

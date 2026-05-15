@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "timewarp-file"
+version = "0.1.0"
+description = "A polished CLI for changing file and folder date modified timestamps."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "TimeWarp File contributors" }
+]
+keywords = ["timestamp", "metadata", "file", "folder", "modified-time", "cli"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: End Users/Desktop",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: System :: Filesystems",
+  "Topic :: Utilities"
+]
+dependencies = []
+
+[project.scripts]
+timewarp-file = "timewarp_file.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
