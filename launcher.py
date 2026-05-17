@@ -20,6 +20,7 @@ from timewarp_file.console import Style, clear_screen
 from timewarp_file.timestamp import (
     collect_targets,
     format_local_timestamp,
+    normalize_path,
     parse_user_datetime,
     set_modified_time,
 )
@@ -64,10 +65,10 @@ def run_timewarp(dry_run: bool) -> int:
         path = choose_path()
         time_value = choose_time()
         desired_timestamp = parse_user_datetime(time_value)
-        root = Path(path).expanduser()
+        root = normalize_path(path)
         recursive = root.is_dir() and ask_yes_no("Update everything inside this folder too?")
         targets = collect_targets(path, recursive=recursive)
-    except (FileNotFoundError, ValueError) as exc:
+    except (OSError, ValueError) as exc:
         print(style.red(f"\n[ERROR] {exc}"))
         pause()
         return 1

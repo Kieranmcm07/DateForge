@@ -11,6 +11,7 @@ from .timestamp import (
     TimestampUpdate,
     collect_targets,
     format_local_timestamp,
+    normalize_path,
     parse_user_datetime,
     set_modified_time,
 )
@@ -86,10 +87,15 @@ def read_prompt(message: str) -> str:
 
 def ask_yes_no(message: str, default: bool = False) -> bool:
     suffix = "[Y/n]" if default else "[y/N]"
-    answer = read_prompt(f"{message} {suffix}: ").strip().lower()
-    if not answer:
-        return default
-    return answer in {"y", "yes"}
+    while True:
+        answer = read_prompt(f"{message} {suffix}: ").strip().lower()
+        if not answer:
+            return default
+        if answer in {"y", "yes"}:
+            return True
+        if answer in {"n", "no"}:
+            return False
+        print("Please answer yes or no.")
 
 
 def prompt_for_missing_values(args: argparse.Namespace) -> None:
@@ -109,7 +115,7 @@ def prompt_for_missing_values(args: argparse.Namespace) -> None:
     if not args.time_value:
         raise ValueError("A desired time is required.")
 
-    target = Path(args.path).expanduser()
+    target = normalize_path(args.path)
     if prompted and target.is_dir() and not args.recursive:
         args.recursive = ask_yes_no("Update everything inside this folder too?")
 
@@ -145,7 +151,7 @@ def run(args: argparse.Namespace) -> int:
         prompt_for_missing_values(args)
         desired_timestamp = parse_user_datetime(args.time_value)
         targets = collect_targets(args.path, recursive=args.recursive)
-    except (FileNotFoundError, ValueError) as exc:
+    except (OSError, ValueError) as exc:
         print(f"{style.red('Error:')} {exc}", file=sys.stderr)
         return 1
 

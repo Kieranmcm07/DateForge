@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 import time
 from dataclasses import dataclass
@@ -13,6 +14,9 @@ SUPPORTED_FORMATS = (
     "%Y-%m-%d %H:%M:%S",
     "%Y-%m-%d %H:%M",
     "%Y-%m-%d",
+    "%Y/%m/%d %H:%M:%S",
+    "%Y/%m/%d %H:%M",
+    "%Y/%m/%d",
     "%m/%d/%Y %H:%M:%S",
     "%m/%d/%Y %H:%M",
     "%m/%d/%Y",
@@ -61,9 +65,40 @@ def parse_user_datetime(value: str | None) -> float:
     return time.mktime(parsed.timetuple()) + (parsed.microsecond / 1_000_000)
 
 
+def normalize_path(path_value: str | os.PathLike[str]) -> Path:
+    """Turn a user supplied path into an expanded Path object."""
+    path_text = os.fspath(path_value).strip()
+    if not path_text:
+        raise ValueError("A file or folder path is required.")
+
+    if len(path_text) >= 2 and path_text[0] == path_text[-1] and path_text[0] in {"'", '"'}:
+        path_text = path_text[1:-1].strip()
+
+    if not path_text:
+        raise ValueError("A file or folder path is required.")
+
+    return Path(path_text).expanduser()
+
+
+def _sort_key(path: Path) -> tuple[str, str]:
+    return (path.name.casefold(), path.name)
+
+
+def _collect_recursive_targets(root: Path) -> list[Path]:
+    targets: list[Path] = []
+    children = sorted(root.iterdir(), key=_sort_key)
+
+    for child in children:
+        if child.is_dir() and not child.is_symlink():
+            targets.extend(_collect_recursive_targets(child))
+        targets.append(child.resolve())
+
+    return targets
+
+
 def collect_targets(path_value: str | os.PathLike[str], recursive: bool = False) -> list[Path]:
     """Collect the file/folder targets that should receive the new modified time."""
-    root = Path(path_value).expanduser()
+    root = normalize_path(path_value)
     if not root.exists():
         raise FileNotFoundError(f"Path does not exist: {root}")
 
@@ -71,18 +106,16 @@ def collect_targets(path_value: str | os.PathLike[str], recursive: bool = False)
     if not recursive or not root.is_dir():
         return [root]
 
-    targets: list[Path] = []
-    for current_dir, dir_names, file_names in os.walk(root, topdown=False):
-        current = Path(current_dir)
-        targets.extend(current / file_name for file_name in file_names)
-        targets.extend(current / dir_name for dir_name in dir_names)
-
+    targets = _collect_recursive_targets(root)
     targets.append(root)
     return targets
 
 
 def set_modified_time(path: Path, timestamp: float, dry_run: bool = False) -> TimestampUpdate:
     """Set a path's modified time while preserving its current access time."""
+    if not math.isfinite(timestamp):
+        raise ValueError("Timestamp must be a finite number.")
+
     stat_result = path.stat()
     before_modified = stat_result.st_mtime
 

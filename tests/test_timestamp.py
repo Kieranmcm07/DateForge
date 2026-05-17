@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import os
 import shutil
 import unittest
@@ -42,6 +43,16 @@ class TimestampTests(unittest.TestCase):
         self.assertEqual(parsed.hour, 18)
         self.assertEqual(parsed.minute, 30)
 
+    def test_parse_slash_separated_iso_date(self) -> None:
+        timestamp = parse_user_datetime("2026/05/15 18:30")
+        parsed = datetime.fromtimestamp(timestamp)
+
+        self.assertEqual(parsed.year, 2026)
+        self.assertEqual(parsed.month, 5)
+        self.assertEqual(parsed.day, 15)
+        self.assertEqual(parsed.hour, 18)
+        self.assertEqual(parsed.minute, 30)
+
     def test_set_modified_time_preserves_access_time(self) -> None:
         with temporary_workspace() as temp_dir:
             target = temp_dir / "example.txt"
@@ -69,6 +80,41 @@ class TimestampTests(unittest.TestCase):
             self.assertIn(child_dir.resolve(), targets)
             self.assertEqual(targets[-1], root.resolve())
 
+    def test_collect_targets_accepts_quoted_paths(self) -> None:
+        with temporary_workspace() as temp_dir:
+            target = temp_dir / "example.txt"
+            target.write_text("hello", encoding="utf-8")
+
+            targets = collect_targets(f'"{target}"')
+
+            self.assertEqual(targets, [target.resolve()])
+
+    def test_collect_targets_rejects_blank_paths(self) -> None:
+        with self.assertRaises(ValueError):
+            collect_targets("   ")
+
+    def test_collect_targets_recursively_uses_stable_order(self) -> None:
+        with temporary_workspace() as temp_dir:
+            root = temp_dir
+            alpha_dir = root / "alpha"
+            alpha_dir.mkdir()
+            alpha_file = alpha_dir / "file.txt"
+            alpha_file.write_text("alpha", encoding="utf-8")
+            beta_file = root / "beta.txt"
+            beta_file.write_text("beta", encoding="utf-8")
+
+            targets = collect_targets(root, recursive=True)
+
+            self.assertEqual(
+                targets,
+                [
+                    alpha_file.resolve(),
+                    alpha_dir.resolve(),
+                    beta_file.resolve(),
+                    root.resolve(),
+                ],
+            )
+
     def test_dry_run_does_not_touch_file(self) -> None:
         with temporary_workspace() as temp_dir:
             target = temp_dir / "example.txt"
@@ -80,6 +126,14 @@ class TimestampTests(unittest.TestCase):
 
             self.assertEqual(update.after_modified, desired)
             self.assertEqual(os.stat(target).st_mtime, before)
+
+    def test_set_modified_time_rejects_non_finite_timestamp(self) -> None:
+        with temporary_workspace() as temp_dir:
+            target = temp_dir / "example.txt"
+            target.write_text("hello", encoding="utf-8")
+
+            with self.assertRaises(ValueError):
+                set_modified_time(target, math.inf)
 
 
 if __name__ == "__main__":

@@ -83,6 +83,8 @@ Recommended:
 YYYY-MM-DD HH:MM
 YYYY-MM-DD HH:MM:SS
 YYYY-MM-DDTHH:MM:SS
+YYYY/MM/DD HH:MM
+YYYY/MM/DD HH:MM:SS
 ```
 
 Also supported:
@@ -98,6 +100,7 @@ Examples:
 ```text
 2026-05-15 18:30
 2026-05-15 18:30:45
+2026/05/15 18:30
 05/15/2026 18:30
 now
 ```
