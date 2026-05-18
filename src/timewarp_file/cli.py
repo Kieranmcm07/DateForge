@@ -67,7 +67,7 @@ def default_banner_rows(context: str | None) -> list[tuple[str, str]]:
     if context == "help":
         return [
             ("HELP", "Showing timestamp command notes"),
-            ("FORMAT", "Use YYYY-MM-DD HH:MM:SS or now"),
+            ("FORMAT", "Use YYYY-MM-DD HH:MM:SS, today 18:30, or now"),
             ("GITHUB", "https://github.com/Kieranmcm07"),
         ]
     if context == "complete":
@@ -133,7 +133,7 @@ def build_parser() -> argparse.ArgumentParser:
         "-t",
         "--time",
         dest="time_value",
-        help='Desired modified time, for example "2026-05-15 18:30:00" or "now".',
+        help='Desired modified time, for example "2026-05-15 18:30:00", "today 18:30", or "now".',
     )
     parser.add_argument(
         "-r",
@@ -189,6 +189,7 @@ def prompt_for_missing_values(args: argparse.Namespace) -> None:
 
     if not args.time_value:
         prompted = True
+        print("Examples: 2026-05-15 18:30:00 | today 18:30 | tomorrow 09:00 | now")
         args.time_value = read_prompt("New modified time: ").strip()
 
     if not args.path:

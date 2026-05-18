@@ -34,8 +34,10 @@ py launcher.py
 - Change a single file or folder modified timestamp.
 - Recursively update everything inside a folder.
 - Styled launcher menu with a Windows batch runner.
+- Launcher returns to the menu after each preview or update.
 - Interactive mode when you run the launcher or CLI without arguments.
 - Optional CLI preview mode for checking folder changes first.
+- Friendly time shortcuts like `today 18:30`, `tomorrow 09:00`, and `now`.
 - No third-party dependencies.
 - Works with local system time by default.
 
@@ -83,6 +85,9 @@ YYYY-MM-DD HH:MM:SS
 YYYY-MM-DDTHH:MM:SS
 YYYY/MM/DD HH:MM
 YYYY/MM/DD HH:MM:SS
+today HH:MM
+tomorrow HH:MM
+yesterday HH:MM
 ```
 
 Also supported:
@@ -91,6 +96,8 @@ Also supported:
 MM/DD/YYYY HH:MM
 MM/DD/YYYY HH:MM:SS
 now
+noon
+midnight
 ```
 
 Examples:
@@ -100,6 +107,10 @@ Examples:
 2026-05-15 18:30:45
 2026/05/15 18:30
 05/15/2026 18:30
+today 18:30
+tomorrow 09:00
+yesterday
+6:30pm
 now
 ```
 

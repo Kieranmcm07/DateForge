@@ -53,6 +53,34 @@ class TimestampTests(unittest.TestCase):
         self.assertEqual(parsed.hour, 18)
         self.assertEqual(parsed.minute, 30)
 
+    def test_parse_today_shortcut_with_time(self) -> None:
+        reference = datetime(2026, 5, 18, 14, 15)
+        timestamp = parse_user_datetime("today 18:30", now=reference)
+        parsed = datetime.fromtimestamp(timestamp)
+
+        self.assertEqual(parsed, datetime(2026, 5, 18, 18, 30))
+
+    def test_parse_tomorrow_shortcut_with_time(self) -> None:
+        reference = datetime(2026, 5, 18, 14, 15)
+        timestamp = parse_user_datetime("tomorrow 09:00", now=reference)
+        parsed = datetime.fromtimestamp(timestamp)
+
+        self.assertEqual(parsed, datetime(2026, 5, 19, 9, 0))
+
+    def test_parse_yesterday_shortcut_without_time_uses_midnight(self) -> None:
+        reference = datetime(2026, 5, 18, 14, 15)
+        timestamp = parse_user_datetime("yesterday", now=reference)
+        parsed = datetime.fromtimestamp(timestamp)
+
+        self.assertEqual(parsed, datetime(2026, 5, 17, 0, 0))
+
+    def test_parse_time_only_uses_today(self) -> None:
+        reference = datetime(2026, 5, 18, 14, 15)
+        timestamp = parse_user_datetime("6:45pm", now=reference)
+        parsed = datetime.fromtimestamp(timestamp)
+
+        self.assertEqual(parsed, datetime(2026, 5, 18, 18, 45))
+
     def test_set_modified_time_preserves_access_time(self) -> None:
         with temporary_workspace() as temp_dir:
             target = temp_dir / "example.txt"

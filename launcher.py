@@ -42,7 +42,7 @@ def choose_path() -> str:
 
 
 def choose_time() -> str:
-    print("\nExamples: 2026-05-15 18:30:00 | 2026-05-15 18:30 | now")
+    print("\nExamples: 2026-05-15 18:30:00 | today 18:30 | tomorrow 09:00 | now")
     return read_prompt("New modified time: ").strip()
 
 
@@ -127,7 +127,7 @@ def show_help() -> None:
     print()
     print(style.magenta("      Paste a file or folder path, then enter the date/time you want."))
     print(style.magenta("      Recommended format: 2026-05-15 18:30:00"))
-    print(style.magenta("      Type 'now' to use the current time."))
+    print(style.magenta("      Easier shortcuts: now, today 18:30, tomorrow 09:00, yesterday."))
     print(style.magenta("      CLI safety flag: --dry-run previews changes without touching timestamps."))
     print()
     print(render_credits(style))
@@ -142,9 +142,11 @@ def main() -> int:
         choice = read_prompt("Select option: ").strip().lower()
 
         if choice in {"1", "change", "start"}:
-            return run_timewarp(dry_run=False)
+            run_timewarp(dry_run=False)
+            continue
         if choice in {"2", "dry", "dry-run", "preview"}:
-            return run_timewarp(dry_run=True)
+            run_timewarp(dry_run=True)
+            continue
         if choice in {"3", "h", "help"}:
             show_help()
             continue

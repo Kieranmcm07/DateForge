@@ -6,7 +6,7 @@ import math
 import os
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, time as datetime_time
 from pathlib import Path
 
 
@@ -22,6 +22,22 @@ SUPPORTED_FORMATS = (
     "%m/%d/%Y",
 )
 
+TIME_ONLY_FORMATS = (
+    "%H:%M:%S",
+    "%H:%M",
+    "%I:%M:%S %p",
+    "%I:%M %p",
+    "%I:%M%p",
+    "%I %p",
+    "%I%p",
+)
+
+RELATIVE_DATE_ALIASES = {
+    "today": 0,
+    "tomorrow": 1,
+    "yesterday": -1,
+}
+
 
 @dataclass(frozen=True)
 class TimestampUpdate:
@@ -32,14 +48,73 @@ class TimestampUpdate:
     after_modified: float
 
 
-def parse_user_datetime(value: str | None) -> float:
+def _to_local_timestamp(parsed: datetime) -> float:
+    if parsed.tzinfo is not None:
+        return parsed.timestamp()
+
+    return time.mktime(parsed.timetuple()) + (parsed.microsecond / 1_000_000)
+
+
+def _parse_time_of_day(value: str) -> datetime_time | None:
+    time_text = " ".join(value.strip().split())
+    if not time_text:
+        return None
+
+    lowered = time_text.lower()
+    if lowered == "noon":
+        return datetime_time(12, 0)
+    if lowered == "midnight":
+        return datetime_time(0, 0)
+
+    for time_format in TIME_ONLY_FORMATS:
+        for candidate in (time_text, time_text.upper()):
+            try:
+                return datetime.strptime(candidate, time_format).time()
+            except ValueError:
+                continue
+
+    return None
+
+
+def _parse_friendly_datetime(value: str, reference: datetime) -> datetime | None:
+    collapsed = " ".join(value.strip().split())
+    lowered = collapsed.lower()
+
+    first_word, separator, rest = collapsed.partition(" ")
+    date_offset = RELATIVE_DATE_ALIASES.get(first_word.lower())
+    if date_offset is not None:
+        target_date = (reference + timedelta(days=date_offset)).date()
+        time_text = rest.strip()
+        if time_text.lower().startswith("at "):
+            time_text = time_text[3:].strip()
+
+        parsed_time = _parse_time_of_day(time_text) if separator else datetime_time(0, 0)
+        if parsed_time is None:
+            return None
+        return datetime.combine(target_date, parsed_time)
+
+    parsed_time = _parse_time_of_day(lowered)
+    if parsed_time is not None:
+        return datetime.combine(reference.date(), parsed_time)
+
+    return None
+
+
+def parse_user_datetime(value: str | None, *, now: datetime | None = None) -> float:
     """Parse a user supplied datetime into a Unix timestamp."""
     if value is None or not value.strip():
         raise ValueError("A desired time is required.")
 
+    reference = now or datetime.now()
     normalized = value.strip()
     if normalized.lower() == "now":
-        return time.time()
+        if now is None:
+            return time.time()
+        return _to_local_timestamp(reference)
+
+    friendly_parsed = _parse_friendly_datetime(normalized, reference)
+    if friendly_parsed is not None:
+        return _to_local_timestamp(friendly_parsed)
 
     iso_candidate = normalized.replace("Z", "+00:00")
     try:
@@ -56,13 +131,10 @@ def parse_user_datetime(value: str | None) -> float:
                 continue
 
     if parsed is None:
-        examples = '"2026-05-15 18:30:00", "2026-05-15T18:30:00", or "now"'
+        examples = '"2026-05-15 18:30:00", "today 18:30", "tomorrow 09:00", or "now"'
         raise ValueError(f"Unsupported time format. Try {examples}.")
 
-    if parsed.tzinfo is not None:
-        return parsed.timestamp()
-
-    return time.mktime(parsed.timetuple()) + (parsed.microsecond / 1_000_000)
+    return _to_local_timestamp(parsed)
 
 
 def normalize_path(path_value: str | os.PathLike[str]) -> Path:
