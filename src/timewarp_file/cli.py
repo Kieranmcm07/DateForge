@@ -1,4 +1,4 @@
-"""Command line interface for TimeWarp File."""
+"""Command line interface for DateForge."""
 
 from __future__ import annotations
 
@@ -16,30 +16,112 @@ from .timestamp import (
     set_modified_time,
 )
 
-BANNER = r"""
-    _______ _                 __        __                 
-   |__   __(_)                \ \      / /                 
-      | |   _ _ __ ___   ___   \ \ /\ / /_ _ _ __ _ __    
-      | |  | | '_ ` _ \ / _ \   \ V  V / _` | '__| '_ \   
-      | |  | | | | | | |  __/    \_/\_/ (_| | |  | |_) |  
-      |_|  |_|_| |_| |_|\___|             \__,_|_|  | .__/ 
-                                                     | |    
-                                                     |_|    
+BANNER_LINES = (
+    "            ____        _       _____                    ",
+    "           |  _ \\  __ _| |_ ___|  ___|__  _ __ __ _  ___ ",
+    "           | | | |/ _` | __/ _ \\ |_ / _ \\| '__/ _` |/ _ \\",
+    "           | |_| | (_| | ||  __/  _| (_) | | | (_| |  __/",
+    "           |____/ \\__,_|\\__\\___|_|  \\___/|_|  \\__, |\\___|",
+    "                                              |___/       ",
+)
+BANNER = "\n".join(BANNER_LINES)
+CREDITS_BANNER = "Built by Kieranmcm07 | GitHub: https://github.com/Kieranmcm07"
 
-        [ TIME CORE  ]  File and folder timestamp control
-        [ SAFE MODE  ]  Dry-run preview available before changes
-        [ LOCAL TIME ]  Uses your computer's local timezone
-"""
+_THEME_CODES = {
+    "green": "92",
+    "cyan": "96",
+    "blue": "94",
+    "magenta": "95",
+    "yellow": "93",
+    "red": "91",
+    "white": "97",
+}
 
-CREDITS_BANNER = r"""
-        Built by Kieranmcm07
-        GitHub: https://github.com/Kieranmcm07
-"""
+
+def _theme_code(colour: str) -> str:
+    return _THEME_CODES.get(colour, _THEME_CODES["green"])
+
+
+def render_status_rows(style: Style, rows: list[tuple[str, str]], colour: str = "green") -> str:
+    code = _theme_code(colour)
+    rendered: list[str] = []
+    for label, message in rows:
+        tag = style.wrap(f"[ {label:<11} ]", code)
+        rendered.append(f"      {tag}  {style.wrap(message, code)}")
+    return "\n".join(rendered)
+
+
+def render_notice_lines(style: Style, messages: list[str], colour: str = "green") -> str:
+    code = _theme_code(colour)
+    return "\n".join(f"      {style.wrap('>>> ' + message, code)}" for message in messages)
+
+
+def default_banner_rows(context: str | None) -> list[tuple[str, str]]:
+    if context == "launcher":
+        return [
+            ("ACCESS", "Timestamp console online"),
+            ("TIME CORE", "Modified-date editor ready"),
+            ("CREDITS", "Made by Kieranmcm07"),
+            ("GITHUB", "https://github.com/Kieranmcm07"),
+        ]
+    if context == "help":
+        return [
+            ("HELP", "Showing timestamp command notes"),
+            ("FORMAT", "Use YYYY-MM-DD HH:MM:SS or now"),
+            ("GITHUB", "https://github.com/Kieranmcm07"),
+        ]
+    if context == "complete":
+        return [
+            ("TIMESTAMP", "Modified-date update complete"),
+            ("STATUS", "Filesystem metadata written"),
+        ]
+    if context == "preview":
+        return [
+            ("PREVIEW", "No file metadata was changed"),
+            ("STATUS", "Timestamp plan complete"),
+        ]
+    if context == "closed":
+        return [
+            ("SESSION", "DateForge launcher closed"),
+            ("STATUS", "Console safe to exit"),
+        ]
+    if context == "interactive":
+        return [
+            ("SYSTEM BOOT", "Initializing timestamp core..."),
+            ("ACCESS NODE", "Waiting for path and time input..."),
+            ("LOCAL TIME", "Using this computer's timezone..."),
+        ]
+    return [
+        ("SYSTEM BOOT", "Timestamp core initialized"),
+        ("ACCESS NODE", "Scanning target path..."),
+        ("LOCAL TIME", "Using this computer's timezone..."),
+    ]
+
+
+def render_banner(
+    style: Style,
+    context: str | None = None,
+    colour: str = "green",
+    rows: list[tuple[str, str]] | None = None,
+) -> str:
+    code = _theme_code(colour)
+    lines = ["", *[f"  {style.wrap(line, code)}" for line in BANNER_LINES], ""]
+    lines.append(render_status_rows(style, rows or default_banner_rows(context), colour))
+    return "\n".join(lines)
+
+
+def render_credits(style: Style) -> str:
+    return "\n".join(
+        [
+            f"      {style.magenta('Built by Kieranmcm07')}",
+            f"      {style.magenta('GitHub: https://github.com/Kieranmcm07')}",
+        ]
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="timewarp-file",
+        prog="dateforge",
         description="Change the date modified timestamp of a file or folder.",
     )
     parser.add_argument(
@@ -128,12 +210,13 @@ def display_path(path: Path) -> str:
 
 
 def print_update(update: TimestampUpdate, style: Style, dry_run: bool) -> None:
-    label = "DRY" if dry_run else "OK"
-    status = style.yellow(label) if dry_run else style.green(label)
+    label = "PREVIEW" if dry_run else "APPLY"
+    colour = "yellow" if dry_run else "green"
+    status = style.wrap(f"[ {label:<11} ]", _theme_code(colour))
     before = format_local_timestamp(update.before_modified)
     after = format_local_timestamp(update.after_modified)
-    print(f"[{status}] {display_path(update.path)}")
-    print(f"     {style.dim(before)} -> {after}")
+    print(f"      {status}  {display_path(update.path)}")
+    print(f"                    {style.dim(before)} -> {style.white(after)}")
 
 
 def run(args: argparse.Namespace) -> int:
@@ -143,9 +226,15 @@ def run(args: argparse.Namespace) -> int:
     if not args.quiet and not args.no_banner:
         if interactive_mode:
             clear_screen()
-        print(style.cyan(BANNER))
-        print(style.magenta(CREDITS_BANNER))
-        print(style.cyan("Starting TimeWarp File. Follow the prompts below.\n"))
+        banner_context = "interactive" if interactive_mode else "cli"
+        banner_colour = "yellow" if args.dry_run else "cyan"
+        print(render_banner(style, banner_context, banner_colour))
+        start_message = (
+            "      Starting DateForge. Follow the prompts below."
+            if interactive_mode
+            else "      DateForge ready. Checking targets..."
+        )
+        print(style.wrap(f"\n{start_message}\n", _theme_code(banner_colour)))
 
     try:
         prompt_for_missing_values(args)
@@ -156,9 +245,13 @@ def run(args: argparse.Namespace) -> int:
         return 1
 
     if not args.quiet:
-        print(f"Target time: {format_local_timestamp(desired_timestamp)}")
-        print(f"Mode: {'dry run' if args.dry_run else 'apply'}")
-        print(f"Items: {len(targets)}\n")
+        action = "TIMESTAMP PREVIEW READY" if args.dry_run else "TIMESTAMP WRITE ARMED"
+        colour = "yellow" if args.dry_run else "green"
+        print(render_notice_lines(style, ["TARGET SCAN COMPLETE", action], colour))
+        print()
+        print(f"      Target time: {format_local_timestamp(desired_timestamp)}")
+        print(f"      Mode: {'preview only' if args.dry_run else 'apply changes'}")
+        print(f"      Items: {len(targets)}\n")
 
     changed = 0
     failed = 0
@@ -177,10 +270,10 @@ def run(args: argparse.Namespace) -> int:
 
     verb = "would be updated" if args.dry_run else "updated"
     if failed:
-        print(f"\n{style.yellow('Done with warnings:')} {changed} {verb}, {failed} failed.")
+        print(f"\n      {style.yellow('Done with warnings:')} {changed} {verb}, {failed} failed.")
         return 2
 
-    print(f"\n{style.green('Done:')} {changed} item(s) {verb}.")
+    print(f"\n      {style.green('Done:')} {changed} item(s) {verb}.")
     return 0
 
 

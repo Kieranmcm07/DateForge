@@ -42,8 +42,14 @@ class Style:
             return text
         return f"\033[{code}m{text}\033[0m"
 
+    def bold(self, text: str) -> str:
+        return self.wrap(text, "1")
+
     def cyan(self, text: str) -> str:
         return self.wrap(text, "36")
+
+    def teal(self, text: str) -> str:
+        return self.wrap(text, "38;5;45")
 
     def blue(self, text: str) -> str:
         return self.wrap(text, "94")
@@ -54,6 +60,12 @@ class Style:
     def magenta(self, text: str) -> str:
         return self.wrap(text, "95")
 
+    def violet(self, text: str) -> str:
+        return self.wrap(text, "38;5;141")
+
+    def pink(self, text: str) -> str:
+        return self.wrap(text, "38;5;205")
+
     def yellow(self, text: str) -> str:
         return self.wrap(text, "93")
 
@@ -62,6 +74,9 @@ class Style:
 
     def white(self, text: str) -> str:
         return self.wrap(text, "97")
+
+    def grey(self, text: str) -> str:
+        return self.wrap(text, "90")
 
     def dim(self, text: str) -> str:
         return self.wrap(text, "2")

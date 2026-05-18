@@ -3,14 +3,14 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "timewarp-file"
+name = "dateforge"
 version = "0.1.0"
-description = "A polished CLI for changing file and folder date modified timestamps."
+description = "A styled CLI for changing file and folder date modified timestamps."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
-  { name = "TimeWarp File contributors" }
+  { name = "DateForge contributors" }
 ]
 keywords = ["timestamp", "metadata", "file", "folder", "modified-time", "cli"]
 classifiers = [
@@ -29,6 +29,8 @@ classifiers = [
 dependencies = []
 
 [project.scripts]
+timewarp = "timewarp_file.cli:main"
+dateforge = "timewarp_file.cli:main"
 timewarp-file = "timewarp_file.cli:main"
 
 [tool.setuptools.packages.find]

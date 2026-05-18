@@ -1,4 +1,4 @@
-"""Legacy convenience launcher for running DateForge from the repository root."""
+"""Convenience launcher for running DateForge from the repository root."""
 
 from pathlib import Path
 import sys

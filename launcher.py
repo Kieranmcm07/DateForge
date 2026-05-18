@@ -2,7 +2,7 @@
 #   Made by Kieranmcm07 on GitHub
 #   GitHub: https://github.com/Kieranmcm07
 # ============================================================
-"""Friendly Windows launcher for TimeWarp File."""
+"""Friendly Windows launcher for DateForge."""
 
 from __future__ import annotations
 
@@ -15,7 +15,14 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from timewarp_file.cli import BANNER, CREDITS_BANNER, ask_yes_no, read_prompt
+from timewarp_file.cli import (
+    ask_yes_no,
+    display_path,
+    read_prompt,
+    render_banner,
+    render_credits,
+    render_notice_lines,
+)
 from timewarp_file.console import Style, clear_screen
 from timewarp_file.timestamp import (
     collect_targets,
@@ -24,25 +31,6 @@ from timewarp_file.timestamp import (
     parse_user_datetime,
     set_modified_time,
 )
-
-
-SUCCESS_BANNER = r"""
-     _____ _                __        __                  ____             _      
-    |_   _(_)_ __ ___   ___ \ \      / /_ _ _ __ _ __    |  _ \ ___  __ _| |_   _ 
-      | | | | '_ ` _ \ / _ \ \ \ /\ / / _` | '__| '_ \   | |_) / _ \/ _` | | | | |
-      | | | | | | | | |  __/  \ V  V / (_| | |  | |_) |  |  _ <  __/ (_| | | |_| |
-      |_| |_|_| |_| |_|\___|   \_/\_/ \__,_|_|  | .__/   |_| \_\___|\__,_|_|\__, |
-                                                |_|                          |___/ 
-"""
-
-STOP_BANNER = r"""
-     _____ _                __        __                  ____  _                 _ 
-    |_   _(_)_ __ ___   ___ \ \      / /_ _ _ __ _ __    / ___|| | ___  ___  ___| |
-      | | | | '_ ` _ \ / _ \ \ \ /\ / / _` | '__| '_ \   \___ \| |/ _ \/ __|/ _ \ |
-      | | | | | | | | |  __/  \ V  V / (_| | |  | |_) |   ___) | | (_) \__ \  __/_|
-      |_| |_|_| |_| |_|\___|   \_/\_/ \__,_|_|  | .__/   |____/|_|\___/|___/\___(_)
-                                                |_|                                  
-"""
 
 
 def pause() -> None:
@@ -73,10 +61,16 @@ def run_timewarp(dry_run: bool) -> int:
         pause()
         return 1
 
-    print(style.cyan("\n[ TIME CORE ] Target scan complete"))
-    print(style.white(f"Target time: {format_local_timestamp(desired_timestamp)}"))
-    print(style.white(f"Mode: {'dry run preview' if dry_run else 'apply changes'}"))
-    print(style.white(f"Items: {len(targets)}\n"))
+    colour = "yellow" if dry_run else "green"
+    clear_screen()
+    print(render_banner(style, "preview" if dry_run else "cli", colour))
+    action = "TIMESTAMP PREVIEW READY" if dry_run else "TIMESTAMP WRITE ARMED"
+    print()
+    print(render_notice_lines(style, ["TARGET SCAN COMPLETE", action], colour))
+    print()
+    print(f"      Target time: {format_local_timestamp(desired_timestamp)}")
+    print(f"      Mode: {'preview only' if dry_run else 'apply changes'}")
+    print(f"      Items: {len(targets)}\n")
 
     changed = 0
     failed = 0
@@ -91,20 +85,24 @@ def run_timewarp(dry_run: bool) -> int:
         changed += 1
         before = format_local_timestamp(update.before_modified)
         after = format_local_timestamp(update.after_modified)
-        status = style.yellow("[DRY]") if dry_run else style.green("[ OK]")
-        print(f"{status} {target}")
-        print(style.dim(f"      {before} -> {after}"))
+        label = f"[ {'PREVIEW' if dry_run else 'APPLY':<11} ]"
+        status = style.yellow(label) if dry_run else style.green(label)
+        print(f"      {status}  {display_path(target)}")
+        print(f"                    {style.dim(before)} -> {style.white(after)}")
 
     print()
     if failed:
-        print(style.yellow(f"Done with warnings: {changed} changed, {failed} failed."))
+        action = "previewed" if dry_run else "changed"
+        print(style.yellow(f"Done with warnings: {changed} {action}, {failed} failed."))
         pause()
         return 2
 
     clear_screen()
-    print(style.green(SUCCESS_BANNER))
+    print(render_banner(style, "preview" if dry_run else "complete", "yellow" if dry_run else "green"))
+    print()
+    print(render_notice_lines(style, ["TARGETS PROCESSED", "DATEFORGE COMPLETE"], "yellow" if dry_run else "green"))
     action = "would be updated" if dry_run else "updated"
-    print(style.green(f"TimeWarp complete. {changed} item(s) {action}."))
+    print(style.wrap(f"\n      DateForge complete. {changed} item(s) {action}.", "93" if dry_run else "92"))
     pause()
     return 0
 
@@ -112,23 +110,27 @@ def run_timewarp(dry_run: bool) -> int:
 def show_launcher() -> None:
     style = Style()
     clear_screen()
-    print(style.cyan(BANNER))
-    print(style.magenta(CREDITS_BANNER))
-    print(style.cyan("        [ LAUNCHER   ]  Choose an action below\n"))
-    print(style.white("        1. Change a file/folder timestamp"))
-    print(style.white("        2. Dry-run preview"))
-    print(style.white("        3. Help"))
-    print(style.white("        4. Exit\n"))
+    print(render_banner(style, "launcher", "green"))
+    print()
+    print(render_notice_lines(style, ["ACCESS GRANTED", "DATEFORGE SYSTEM ONLINE"], "green"))
+    print()
+    print(style.green("      [ 01 ]  Change a file/folder timestamp"))
+    print(style.green("      [ 02 ]  Dry-run preview"))
+    print(style.green("      [ 03 ]  Help"))
+    print(style.green("      [ 04 ]  Exit\n"))
 
 
 def show_help() -> None:
     style = Style()
     clear_screen()
-    print(style.cyan(BANNER))
-    print(style.white("        Paste a file or folder path, then enter the date/time you want."))
-    print(style.white("        Recommended format: 2026-05-15 18:30:00"))
-    print(style.white("        Type 'now' to use the current time."))
-    print(style.white("        Dry-run mode previews changes without touching timestamps."))
+    print(render_banner(style, "help", "magenta"))
+    print()
+    print(style.magenta("      Paste a file or folder path, then enter the date/time you want."))
+    print(style.magenta("      Recommended format: 2026-05-15 18:30:00"))
+    print(style.magenta("      Type 'now' to use the current time."))
+    print(style.magenta("      CLI safety flag: --dry-run previews changes without touching timestamps."))
+    print()
+    print(render_credits(style))
     pause()
 
 
@@ -141,19 +143,21 @@ def main() -> int:
 
         if choice in {"1", "change", "start"}:
             return run_timewarp(dry_run=False)
-        if choice in {"2", "dry", "preview"}:
+        if choice in {"2", "dry", "dry-run", "preview"}:
             return run_timewarp(dry_run=True)
         if choice in {"3", "h", "help"}:
             show_help()
             continue
         if choice in {"4", "exit", "quit", "q"}:
             clear_screen()
-            print(style.yellow(STOP_BANNER))
-            print(style.yellow("TimeWarp launcher closed."))
+            print(render_banner(style, "closed", "red"))
+            print()
+            print(render_notice_lines(style, ["SESSION TERMINATED", "DATEFORGE OFFLINE"], "red"))
+            print(style.red("\n      DateForge launcher closed."))
             time.sleep(1)
             return 0
 
-        print(style.red("Unknown option. Choose 1, 2, 3, or 4."))
+        print(style.red("      Unknown option. Choose 1, 2, 3, or 4."))
         time.sleep(1)
 
 

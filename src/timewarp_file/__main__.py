@@ -1,4 +1,4 @@
-"""Run TimeWarp File with ``python -m timewarp_file``."""
+"""Run DateForge with ``python -m timewarp_file``."""
 
 from .cli import main
 
