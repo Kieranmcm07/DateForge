@@ -1,3 +1,7 @@
+# ============================================================
+#   Made by Kieranmcm07 on GitHub
+#   GitHub: https://github.com/Kieranmcm07
+# ============================================================
 """Command line interface for DateForge."""
 
 from __future__ import annotations
@@ -25,11 +29,17 @@ BANNER_LINES = (
     "                                              |___/       ",
 )
 BANNER = "\n".join(BANNER_LINES)
-CREDITS_BANNER = "Built by Kieranmcm07 | GitHub: https://github.com/Kieranmcm07"
+CREDITS_BANNER = "\n".join(
+    [
+        "        Built by Kieranmcm07",
+        "        GitHub: https://github.com/Kieranmcm07",
+        "        Forge timestamps cleanly. Leave file contents untouched.",
+    ]
+)
 
 _THEME_CODES = {
     "green": "92",
-    "cyan": "96",
+    "cyan": "36",
     "blue": "94",
     "magenta": "95",
     "yellow": "93",
@@ -56,45 +66,51 @@ def render_notice_lines(style: Style, messages: list[str], colour: str = "green"
     return "\n".join(f"      {style.wrap('>>> ' + message, code)}" for message in messages)
 
 
+def render_terminal_prompt(style: Style, label: str = "dateforge") -> str:
+    return style.cyan(f"{label}@local > ")
+
+
 def default_banner_rows(context: str | None) -> list[tuple[str, str]]:
     if context == "launcher":
         return [
-            ("ACCESS", "Timestamp console online"),
-            ("TIME CORE", "Modified-date editor ready"),
+            ("SYSTEM BOOT", "DateForge timestamp console initialized..."),
+            ("ACCESS NODE", "Awaiting operator command..."),
+            ("TIME CORE", "Filesystem metadata tools online..."),
             ("CREDITS", "Made by Kieranmcm07"),
             ("GITHUB", "https://github.com/Kieranmcm07"),
         ]
     if context == "help":
         return [
-            ("HELP", "Showing timestamp command notes"),
-            ("FORMAT", "Use YYYY-MM-DD HH:MM:SS, today 18:30, or now"),
+            ("HELP NODE", "Timestamp command reference loaded..."),
+            ("FORMAT", "YYYY-MM-DD HH:MM:SS, today 18:30, or now"),
+            ("SAFETY", "Use --dry-run to preview before writing metadata"),
             ("GITHUB", "https://github.com/Kieranmcm07"),
         ]
     if context == "complete":
         return [
-            ("TIMESTAMP", "Modified-date update complete"),
-            ("STATUS", "Filesystem metadata written"),
+            ("ACCESS", "Timestamp write confirmed"),
+            ("TIME CORE", "Filesystem metadata updated"),
         ]
     if context == "preview":
         return [
-            ("PREVIEW", "No file metadata was changed"),
-            ("STATUS", "Timestamp plan complete"),
+            ("SIMULATION", "Timestamp preview generated"),
+            ("SAFETY", "No file metadata was changed"),
         ]
     if context == "closed":
         return [
-            ("SESSION", "DateForge launcher closed"),
-            ("STATUS", "Console safe to exit"),
+            ("SESSION", "DateForge console terminated"),
+            ("STATUS", "Window safe to close"),
         ]
     if context == "interactive":
         return [
             ("SYSTEM BOOT", "Initializing timestamp core..."),
-            ("ACCESS NODE", "Waiting for path and time input..."),
-            ("LOCAL TIME", "Using this computer's timezone..."),
+            ("ACCESS NODE", "Waiting for target path and time input..."),
+            ("TIME CORE", "Local timezone lock acquired..."),
         ]
     return [
         ("SYSTEM BOOT", "Timestamp core initialized"),
         ("ACCESS NODE", "Scanning target path..."),
-        ("LOCAL TIME", "Using this computer's timezone..."),
+        ("TIME CORE", "Using this computer's timezone..."),
     ]
 
 
@@ -115,6 +131,7 @@ def render_credits(style: Style) -> str:
         [
             f"      {style.magenta('Built by Kieranmcm07')}",
             f"      {style.magenta('GitHub: https://github.com/Kieranmcm07')}",
+            f"      {style.magenta('Forge timestamps cleanly. Leave file contents untouched.')}",
         ]
     )
 
@@ -168,29 +185,31 @@ def read_prompt(message: str) -> str:
 
 
 def ask_yes_no(message: str, default: bool = False) -> bool:
+    style = Style()
     suffix = "[Y/n]" if default else "[y/N]"
     while True:
-        answer = read_prompt(f"{message} {suffix}: ").strip().lower()
+        answer = read_prompt(style.cyan(f"{message} {suffix}: ")).strip().lower()
         if not answer:
             return default
         if answer in {"y", "yes"}:
             return True
         if answer in {"n", "no"}:
             return False
-        print("Please answer yes or no.")
+        print(style.yellow("      Please answer yes or no."))
 
 
 def prompt_for_missing_values(args: argparse.Namespace) -> None:
+    style = Style()
     prompted = False
 
     if not args.path:
         prompted = True
-        args.path = read_prompt("File or folder path: ").strip().strip('"')
+        args.path = read_prompt(render_terminal_prompt(style, "target.path")).strip().strip('"')
 
     if not args.time_value:
         prompted = True
-        print("Examples: 2026-05-15 18:30:00 | today 18:30 | tomorrow 09:00 | now")
-        args.time_value = read_prompt("New modified time: ").strip()
+        print(style.dim("      Examples: 2026-05-15 18:30:00 | today 18:30 | tomorrow 09:00 | now"))
+        args.time_value = read_prompt(render_terminal_prompt(style, "target.time")).strip()
 
     if not args.path:
         raise ValueError("A file or folder path is required.")
@@ -231,9 +250,9 @@ def run(args: argparse.Namespace) -> int:
         banner_colour = "yellow" if args.dry_run else "cyan"
         print(render_banner(style, banner_context, banner_colour))
         start_message = (
-            "      Starting DateForge. Follow the prompts below."
+            "      >>> DATEFORGE TERMINAL READY"
             if interactive_mode
-            else "      DateForge ready. Checking targets..."
+            else "      >>> TARGET SCAN INITIALIZED"
         )
         print(style.wrap(f"\n{start_message}\n", _theme_code(banner_colour)))
 
@@ -250,9 +269,18 @@ def run(args: argparse.Namespace) -> int:
         colour = "yellow" if args.dry_run else "green"
         print(render_notice_lines(style, ["TARGET SCAN COMPLETE", action], colour))
         print()
-        print(f"      Target time: {format_local_timestamp(desired_timestamp)}")
-        print(f"      Mode: {'preview only' if args.dry_run else 'apply changes'}")
-        print(f"      Items: {len(targets)}\n")
+        print(
+            render_status_rows(
+                style,
+                [
+                    ("TARGET TIME", format_local_timestamp(desired_timestamp)),
+                    ("MODE", "preview only" if args.dry_run else "apply changes"),
+                    ("ITEMS", str(len(targets))),
+                ],
+                colour,
+            )
+        )
+        print()
 
     changed = 0
     failed = 0
@@ -271,10 +299,10 @@ def run(args: argparse.Namespace) -> int:
 
     verb = "would be updated" if args.dry_run else "updated"
     if failed:
-        print(f"\n      {style.yellow('Done with warnings:')} {changed} {verb}, {failed} failed.")
+        print(f"\n      {style.yellow('>>> DATEFORGE COMPLETE WITH WARNINGS')} {changed} {verb}, {failed} failed.")
         return 2
 
-    print(f"\n      {style.green('Done:')} {changed} item(s) {verb}.")
+    print(f"\n      {style.green('>>> DATEFORGE COMPLETE')} {changed} item(s) {verb}.")
     return 0
 
 

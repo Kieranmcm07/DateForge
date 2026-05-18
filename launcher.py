@@ -22,6 +22,8 @@ from timewarp_file.cli import (
     render_banner,
     render_credits,
     render_notice_lines,
+    render_status_rows,
+    render_terminal_prompt,
 )
 from timewarp_file.console import Style, clear_screen
 from timewarp_file.timestamp import (
@@ -34,16 +36,19 @@ from timewarp_file.timestamp import (
 
 
 def pause() -> None:
-    input("\nPress Enter to return to the launcher...")
+    style = Style()
+    input(style.grey("\nPress Enter to return to the DateForge console..."))
 
 
 def choose_path() -> str:
-    return read_prompt("Drag/drop or paste file/folder path: ").strip().strip('"')
+    style = Style()
+    return read_prompt(render_terminal_prompt(style, "target.path")).strip().strip('"')
 
 
 def choose_time() -> str:
-    print("\nExamples: 2026-05-15 18:30:00 | today 18:30 | tomorrow 09:00 | now")
-    return read_prompt("New modified time: ").strip()
+    style = Style()
+    print(style.dim("\n      Examples: 2026-05-15 18:30:00 | today 18:30 | tomorrow 09:00 | now"))
+    return read_prompt(render_terminal_prompt(style, "target.time")).strip()
 
 
 def run_timewarp(dry_run: bool) -> int:
@@ -57,7 +62,7 @@ def run_timewarp(dry_run: bool) -> int:
         recursive = root.is_dir() and ask_yes_no("Update everything inside this folder too?")
         targets = collect_targets(path, recursive=recursive)
     except (OSError, ValueError) as exc:
-        print(style.red(f"\n[ERROR] {exc}"))
+        print(style.red(f"\n      >>> ACCESS DENIED: {exc}"))
         pause()
         return 1
 
@@ -68,9 +73,18 @@ def run_timewarp(dry_run: bool) -> int:
     print()
     print(render_notice_lines(style, ["TARGET SCAN COMPLETE", action], colour))
     print()
-    print(f"      Target time: {format_local_timestamp(desired_timestamp)}")
-    print(f"      Mode: {'preview only' if dry_run else 'apply changes'}")
-    print(f"      Items: {len(targets)}\n")
+    print(
+        render_status_rows(
+            style,
+            [
+                ("TARGET TIME", format_local_timestamp(desired_timestamp)),
+                ("MODE", "preview only" if dry_run else "apply changes"),
+                ("ITEMS", str(len(targets))),
+            ],
+            colour,
+        )
+    )
+    print()
 
     changed = 0
     failed = 0
@@ -114,10 +128,10 @@ def show_launcher() -> None:
     print()
     print(render_notice_lines(style, ["ACCESS GRANTED", "DATEFORGE SYSTEM ONLINE"], "green"))
     print()
-    print(style.green("      [ 01 ]  Change a file/folder timestamp"))
-    print(style.green("      [ 02 ]  Dry-run preview"))
-    print(style.green("      [ 03 ]  Help"))
-    print(style.green("      [ 04 ]  Exit\n"))
+    print(style.cyan("      [ 01 ]  Forge timestamp"))
+    print(style.cyan("      [ 02 ]  Dry-run simulation"))
+    print(style.cyan("      [ 03 ]  Help node"))
+    print(style.cyan("      [ 04 ]  Terminate session\n"))
 
 
 def show_help() -> None:
@@ -125,10 +139,18 @@ def show_help() -> None:
     clear_screen()
     print(render_banner(style, "help", "magenta"))
     print()
-    print(style.magenta("      Paste a file or folder path, then enter the date/time you want."))
-    print(style.magenta("      Recommended format: 2026-05-15 18:30:00"))
-    print(style.magenta("      Easier shortcuts: now, today 18:30, tomorrow 09:00, yesterday."))
-    print(style.magenta("      CLI safety flag: --dry-run previews changes without touching timestamps."))
+    print(
+        render_status_rows(
+            style,
+            [
+                ("PATH", "Paste or drag a file/folder path into the terminal"),
+                ("FORMAT", "Recommended: 2026-05-15 18:30:00"),
+                ("SHORTCUTS", "now, today 18:30, tomorrow 09:00, yesterday"),
+                ("SAFETY", "--dry-run previews changes without touching metadata"),
+            ],
+            "magenta",
+        )
+    )
     print()
     print(render_credits(style))
     pause()
@@ -139,7 +161,7 @@ def main() -> int:
 
     while True:
         show_launcher()
-        choice = read_prompt("Select option: ").strip().lower()
+        choice = read_prompt(render_terminal_prompt(style, "dateforge")).strip().lower()
 
         if choice in {"1", "change", "start"}:
             run_timewarp(dry_run=False)
@@ -159,7 +181,7 @@ def main() -> int:
             time.sleep(1)
             return 0
 
-        print(style.red("      Unknown option. Choose 1, 2, 3, or 4."))
+        print(style.red("      >>> UNKNOWN COMMAND. Choose 1, 2, 3, or 4."))
         time.sleep(1)
 
 

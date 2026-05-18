@@ -1,3 +1,7 @@
+# ============================================================
+#   Made by Kieranmcm07 on GitHub
+#   GitHub: https://github.com/Kieranmcm07
+# ============================================================
 """Timestamp parsing and file metadata helpers."""
 
 from __future__ import annotations

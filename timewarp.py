@@ -1,3 +1,7 @@
+# ============================================================
+#   Made by Kieranmcm07 on GitHub
+#   GitHub: https://github.com/Kieranmcm07
+# ============================================================
 """Legacy convenience launcher for running DateForge from the repository root."""
 
 from pathlib import Path

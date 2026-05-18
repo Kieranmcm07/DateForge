@@ -1,3 +1,7 @@
+# ============================================================
+#   Made by Kieranmcm07 on GitHub
+#   GitHub: https://github.com/Kieranmcm07
+# ============================================================
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"

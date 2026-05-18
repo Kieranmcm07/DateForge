@@ -1,3 +1,7 @@
+# ============================================================
+#   Made by Kieranmcm07 on GitHub
+#   GitHub: https://github.com/Kieranmcm07
+# ============================================================
 """Console helpers for the TimeWarp File command line tools."""
 
 from __future__ import annotations
