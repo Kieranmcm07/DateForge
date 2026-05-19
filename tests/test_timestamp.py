@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import math
-import os
 import shutil
 import unittest
 import uuid
@@ -146,18 +145,6 @@ class TimestampTests(unittest.TestCase):
                     root.resolve(),
                 ],
             )
-
-    def test_dry_run_does_not_touch_file(self) -> None:
-        with temporary_workspace() as temp_dir:
-            target = temp_dir / "example.txt"
-            target.write_text("hello", encoding="utf-8")
-            before = os.stat(target).st_mtime
-            desired = parse_user_datetime("2026-05-15 18:30:00")
-
-            update = set_modified_time(target, desired, dry_run=True)
-
-            self.assertEqual(update.after_modified, desired)
-            self.assertEqual(os.stat(target).st_mtime, before)
 
     def test_set_modified_time_rejects_non_finite_timestamp(self) -> None:
         with temporary_workspace() as temp_dir:

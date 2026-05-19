@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+import ctypes
+import fnmatch
 import math
 import os
 import time
@@ -50,6 +52,19 @@ class TimestampUpdate:
     path: Path
     before_modified: float
     after_modified: float
+    before_created: float | None = None
+    after_created: float | None = None
+    modified_requested: bool = True
+    created_requested: bool = False
+
+
+@dataclass(frozen=True)
+class TimestampState:
+    """Current timestamp metadata for a path."""
+
+    path: Path
+    modified: float
+    created: float | None = None
 
 
 def _to_local_timestamp(parsed: datetime) -> float:
@@ -160,6 +175,17 @@ def _sort_key(path: Path) -> tuple[str, str]:
     return (path.name.casefold(), path.name)
 
 
+def _matches_any(path: Path, root: Path, patterns: list[str] | tuple[str, ...]) -> bool:
+    try:
+        relative = path.relative_to(root)
+    except ValueError:
+        relative = path
+
+    relative_text = relative.as_posix()
+    candidates = {path.name, relative_text, str(relative)}
+    return any(fnmatch.fnmatch(candidate, pattern) for pattern in patterns for candidate in candidates)
+
+
 def _collect_recursive_targets(root: Path) -> list[Path]:
     targets: list[Path] = []
     children = sorted(root.iterdir(), key=_sort_key)
@@ -172,7 +198,12 @@ def _collect_recursive_targets(root: Path) -> list[Path]:
     return targets
 
 
-def collect_targets(path_value: str | os.PathLike[str], recursive: bool = False) -> list[Path]:
+def collect_targets(
+    path_value: str | os.PathLike[str],
+    recursive: bool = False,
+    include: list[str] | tuple[str, ...] | None = None,
+    exclude: list[str] | tuple[str, ...] | None = None,
+) -> list[Path]:
     """Collect the file/folder targets that should receive the new modified time."""
     root = normalize_path(path_value)
     if not root.exists():
@@ -180,32 +211,144 @@ def collect_targets(path_value: str | os.PathLike[str], recursive: bool = False)
 
     root = root.resolve()
     if not recursive or not root.is_dir():
-        return [root]
+        targets = [root]
+    else:
+        targets = _collect_recursive_targets(root)
+        targets.append(root)
 
-    targets = _collect_recursive_targets(root)
-    targets.append(root)
+    if include:
+        targets = [target for target in targets if _matches_any(target, root, include)]
+    if exclude:
+        targets = [target for target in targets if not _matches_any(target, root, exclude)]
+
     return targets
 
 
-def set_modified_time(path: Path, timestamp: float, dry_run: bool = False) -> TimestampUpdate:
-    """Set a path's modified time while preserving its current access time."""
-    if not math.isfinite(timestamp):
-        raise ValueError("Timestamp must be a finite number.")
+def get_created_time(path: Path) -> float | None:
+    """Return the created timestamp where the platform exposes one."""
+    stat_result = path.stat()
+    if hasattr(stat_result, "st_birthtime"):
+        return stat_result.st_birthtime
+    if os.name == "nt":
+        return stat_result.st_ctime
+    return None
+
+
+def get_timestamp_state(path: Path) -> TimestampState:
+    """Read the current timestamp metadata for a path."""
+    stat_result = path.stat()
+    return TimestampState(
+        path=path,
+        modified=stat_result.st_mtime,
+        created=get_created_time(path),
+    )
+
+
+class _FileTime(ctypes.Structure):
+    _fields_ = [
+        ("dwLowDateTime", ctypes.c_uint32),
+        ("dwHighDateTime", ctypes.c_uint32),
+    ]
+
+
+def _timestamp_to_filetime(timestamp: float) -> _FileTime:
+    intervals = int((timestamp + 11_644_473_600) * 10_000_000)
+    return _FileTime(intervals & 0xFFFFFFFF, intervals >> 32)
+
+
+def _set_created_time_windows(path: Path, timestamp: float) -> None:
+    if os.name != "nt":
+        raise OSError("Creation time updates are only supported on Windows.")
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    file_write_attributes = 0x0100
+    file_share_read = 0x00000001
+    file_share_write = 0x00000002
+    file_share_delete = 0x00000004
+    open_existing = 3
+    file_flag_backup_semantics = 0x02000000
+    invalid_handle_value = ctypes.c_void_p(-1).value
+
+    kernel32.CreateFileW.argtypes = [
+        ctypes.c_wchar_p,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_void_p,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_void_p,
+    ]
+    kernel32.CreateFileW.restype = ctypes.c_void_p
+    kernel32.SetFileTime.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(_FileTime),
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+    ]
+    kernel32.SetFileTime.restype = ctypes.c_int
+    kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
+    kernel32.CloseHandle.restype = ctypes.c_int
+
+    handle = kernel32.CreateFileW(
+        str(path),
+        file_write_attributes,
+        file_share_read | file_share_write | file_share_delete,
+        None,
+        open_existing,
+        file_flag_backup_semantics,
+        None,
+    )
+    if handle == invalid_handle_value:
+        raise ctypes.WinError(ctypes.get_last_error())
+
+    try:
+        created_time = _timestamp_to_filetime(timestamp)
+        if not kernel32.SetFileTime(handle, ctypes.byref(created_time), None, None):
+            raise ctypes.WinError(ctypes.get_last_error())
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def set_path_times(
+    path: Path,
+    *,
+    modified_timestamp: float | None = None,
+    created_timestamp: float | None = None,
+) -> TimestampUpdate:
+    """Set supported timestamp metadata while preserving access time."""
+    if modified_timestamp is None and created_timestamp is None:
+        raise ValueError("At least one timestamp must be supplied.")
+
+    for label, timestamp in (("Modified", modified_timestamp), ("Created", created_timestamp)):
+        if timestamp is not None and not math.isfinite(timestamp):
+            raise ValueError(f"{label} timestamp must be a finite number.")
 
     stat_result = path.stat()
     before_modified = stat_result.st_mtime
+    before_created = get_created_time(path)
 
-    if not dry_run:
-        os.utime(path, (stat_result.st_atime, timestamp))
-        after_modified = path.stat().st_mtime
-    else:
-        after_modified = timestamp
+    if created_timestamp is not None:
+        _set_created_time_windows(path, created_timestamp)
+
+    if modified_timestamp is not None:
+        os.utime(path, (stat_result.st_atime, modified_timestamp))
+
+    after_state = get_timestamp_state(path)
 
     return TimestampUpdate(
         path=path,
         before_modified=before_modified,
-        after_modified=after_modified,
+        after_modified=after_state.modified,
+        before_created=before_created,
+        after_created=after_state.created,
+        modified_requested=modified_timestamp is not None,
+        created_requested=created_timestamp is not None,
     )
+
+
+def set_modified_time(path: Path, timestamp: float) -> TimestampUpdate:
+    """Set a path's modified time while preserving its current access time."""
+    return set_path_times(path, modified_timestamp=timestamp)
 
 
 def format_local_timestamp(timestamp: float) -> str:

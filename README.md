@@ -11,8 +11,9 @@
   A polished Python timestamp toolkit for changing the <strong>date modified</strong>
   value of files and folders from a clean hacker-terminal styled launcher.
   <br>
-  Single files, folders, recursive folder updates, dry-run previews, and friendly
-  time shortcuts all run from one lightweight console tool.
+  Single files, folders, recursive folder updates, undo history, batch updates,
+  saved presets, filters, Windows created-time support, and friendly time
+  shortcuts all run from one lightweight console tool.
 </p>
 
 <p align="center">
@@ -49,12 +50,10 @@
 
 <p align="center">
   <strong>Built for quick local file work:</strong>
-  pick a target, choose the modified time you want, preview when needed, and
-  let DateForge update metadata without editing file contents.
+  pick a target, choose the modified time you want, and let DateForge update
+  metadata without editing file contents. Every successful update is logged so
+  the last DateForge change can be restored.
 </p>
-
-> Tip: use `--dry-run` before recursive folder updates if you want to see every
-> file and folder DateForge would touch before it writes anything.
 
 ## Timestamp Workflow
 
@@ -71,8 +70,8 @@
     </td>
     <td width="33%" align="center">
       <strong>3. Forge Metadata</strong><br>
-      Apply the new modified time, or run a dry simulation first so the target
-      list is visible before anything changes.
+      Apply modified and optional created timestamps while DateForge shows each
+      processed target and records an undoable history entry.
     </td>
   </tr>
 </table>
@@ -91,11 +90,11 @@
     </td>
     <td width="25%" align="center">
       <strong>Folder Control</strong><br>
-      Update a folder itself, or recursively process child files and folders.
+      Update a folder itself, recursively process children, or filter by glob.
     </td>
     <td width="25%" align="center">
-      <strong>Safety Preview</strong><br>
-      Dry-run mode lists planned changes without touching filesystem metadata.
+      <strong>Undo History</strong><br>
+      Restore the most recent DateForge change or inspect the history log.
     </td>
   </tr>
 </table>
@@ -123,6 +122,7 @@
     <td width="50%">
       <strong>Recursive folder updates</strong><br>
       Process everything inside a folder, then reset the root folder timestamp last.
+      Include and exclude glob filters can limit which targets are touched.
     </td>
   </tr>
   <tr>
@@ -134,6 +134,30 @@
     <td width="50%">
       <strong>No third-party dependencies</strong><br>
       Uses the Python standard library only, so setup stays small and local.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <strong>Undo and history log</strong><br>
+      Every successful update is written to a local JSONL history file. Run
+      <code>--undo</code> to restore the latest unapplied DateForge change.
+    </td>
+    <td width="50%">
+      <strong>Batch files and presets</strong><br>
+      Update many paths from a text file, save named timestamp presets, and reuse
+      those presets from either modified-time or created-time commands.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <strong>Windows created time</strong><br>
+      On Windows, DateForge can update file/folder created time with
+      <code>--created</code> while still supporting modified-time changes.
+    </td>
+    <td width="50%">
+      <strong>Local-only storage</strong><br>
+      Presets and history are stored on your machine under the DateForge app data
+      folder by default.
     </td>
   </tr>
 </table>
@@ -191,8 +215,17 @@ py dateforge.py "C:\path\to\file.txt" --time "2026-05-15 18:30:00"
 | `timewarp-file` | Legacy command alias |
 | `PATH` | File or folder to update |
 | `--time "YYYY-MM-DD HH:MM:SS"` | Desired modified timestamp |
+| `--created "YYYY-MM-DD HH:MM:SS"` | Desired Windows created timestamp |
 | `--recursive` | Update child files and folders when the target is a folder |
-| `--dry-run` | Preview planned changes without modifying timestamps |
+| `--include "*.txt"` | Only update targets matching a glob pattern |
+| `--exclude "*.bak"` | Skip targets matching a glob pattern |
+| `--batch targets.txt` | Read target paths from a text file |
+| `--preset NAME` | Use a saved preset as the modified timestamp |
+| `--save-preset NAME TIME` | Save a reusable timestamp preset |
+| `--delete-preset NAME` | Delete a saved preset |
+| `--list-presets` | Show saved presets |
+| `--history [N]` | Show recent history entries |
+| `--undo` | Restore the latest unapplied DateForge change |
 | `--no-banner` | Hide the ASCII banner for cleaner command output |
 | `--quiet` | Print only errors and the final count |
 
@@ -216,10 +249,42 @@ Update every item inside a folder too:
 py dateforge.py "C:\path\to\folder" --time "2026-05-15 18:30:00" --recursive
 ```
 
-Preview changes without touching anything:
+Update only text files in a folder tree:
 
 ```powershell
-py dateforge.py "C:\path\to\file.txt" --time "2026-05-15 18:30:00" --dry-run
+py dateforge.py "C:\path\to\folder" --time "2026-05-15 18:30:00" --recursive --include "*.txt"
+```
+
+Skip temporary files during a recursive update:
+
+```powershell
+py dateforge.py "C:\path\to\folder" --time "2026-05-15 18:30:00" --recursive --exclude "*.tmp"
+```
+
+Update Windows created time too:
+
+```powershell
+py dateforge.py "C:\path\to\file.txt" --time "2026-05-15 18:30:00" --created same
+```
+
+Update targets from a batch file:
+
+```powershell
+py dateforge.py --batch targets.txt --time "2026-05-15 18:30:00"
+```
+
+Save and use a preset:
+
+```powershell
+py dateforge.py --save-preset release "2026-05-15 18:30:00"
+py dateforge.py "C:\path\to\file.txt" --preset release
+```
+
+Show history or undo the latest DateForge change:
+
+```powershell
+py dateforge.py --history
+py dateforge.py --undo
 ```
 
 ## Accepted Time Formats
@@ -279,10 +344,14 @@ The older `timewarp` and `timewarp-file` commands are also kept as aliases.
 
 ## Data And Behaviour Notes
 
-- DateForge changes modified timestamp metadata only. It does not edit file contents.
+- DateForge changes timestamp metadata only. It does not edit file contents.
+- DateForge can also change Windows created time when `--created` is used.
 - Access time is preserved while modified time is changed.
 - On folders, `--recursive` updates child files and folders before resetting the root folder timestamp.
-- Dry-run mode shows the planned target list and final timestamp without writing changes.
+- `--include` and `--exclude` accept glob patterns and can be repeated.
+- Batch files use one target path per line. Blank lines and lines starting with `#` are ignored.
+- Successful updates are recorded in a local history log so `--undo` can restore the latest unapplied change.
+- Presets and history are stored in the DateForge app data folder by default.
 - Some protected files may require elevated permissions.
 - DateForge uses your local system timezone by default.
 
@@ -296,9 +365,12 @@ The older `timewarp` and `timewarp-file` commands are also kept as aliases.
 |       |-- __main__.py
 |       |-- cli.py
 |       |-- console.py
+|       |-- history.py
+|       |-- presets.py
 |       `-- timestamp.py
 |-- tests/
 |   |-- __init__.py
+|   |-- test_features.py
 |   `-- test_timestamp.py
 |-- dateforge.py
 |-- launcher.py
