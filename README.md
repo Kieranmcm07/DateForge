@@ -39,14 +39,9 @@
   <a href="#development">Development</a>
 </p>
 
-```text
-            ____        _       _____
-           |  _ \  __ _| |_ ___|  ___|__  _ __ __ _  ___
-           | | | |/ _` | __/ _ \ |_ / _ \| '__/ _` |/ _ \
-           | |_| | (_| | ||  __/  _| (_) | | | (_| |  __/
-           |____/ \__,_|\__\___|_|  \___/|_|  \__, |\___|
-                                              |___/
-```
+<p align="center">
+  <img src="assets/dateforge-banner.png" alt="DateForge - a Python timestamp toolkit" width="100%">
+</p>
 
 <p align="center">
   <strong>Built for quick local file work:</strong>
@@ -359,6 +354,8 @@ The older `timewarp` and `timewarp-file` commands are also kept as aliases.
 
 ```text
 .
+|-- assets/
+|   `-- dateforge-banner.png
 |-- src/
 |   `-- timewarp_file/
 |       |-- __init__.py
